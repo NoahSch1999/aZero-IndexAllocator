@@ -7,7 +7,6 @@ namespace aZero
 {
 	namespace DS
 	{
-		
 		template<typename T>
 		concept UnsignedInteger = std::disjunction<
 			std::is_same<T, uint64_t>,

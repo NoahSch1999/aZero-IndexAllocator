@@ -2,18 +2,18 @@
 #include <type_traits>
 #include <concepts>
 #include <stack>
+#include <vector>
 
 namespace aZero
 {
 	namespace DS
 	{
 		template<typename T>
-		concept UnsignedInteger = std::disjunction<
-			std::is_same<T, uint64_t>,
-			std::is_same<T, uint32_t>,
-			std::is_same<T, uint16_t>,
-			std::is_same<T, uint8_t>
-		>::value;
+		concept UnsignedInteger =
+			std::is_same_v<T, uint64_t> ||
+			std::is_same_v<T, uint32_t> ||
+			std::is_same_v<T, uint16_t> ||
+			std::is_same_v<T, uint8_t>;
 
 		/*
 		An allocator that allocates indices incrementally from 0 and enables reuse of freed indices.
@@ -31,25 +31,44 @@ namespace aZero
 			constexpr static IndexType InvalidIndex = std::numeric_limits<IndexType>::max();
 
 			/*
-			A wrapper around the IndexType template parameter.
-			This is used to avoid unintentional assignments or a double frees.
-			NOTE: Copying the class to several variables can lead to double-frees if not careful.
+			A wrapper around IndexType.
+			The wrapper is movable-only to avoid unintentional double-frees.
 			*/
 			class Index
 			{
 				friend IndexAllocator;
 			public:
 				Index() = default;
+				Index(const Index&) = delete;
+				Index& operator=(const Index&) = delete;
+
+				Index(Index&& other) noexcept { this->Move(other); }
+
+				Index& operator=(Index&& other) noexcept
+				{
+					if (*this != other)
+					{
+						this->Move(other);
+					}
+
+					return *this;
+				}
 
 				// Conversion function to make the class be implicitly or explicitly converted to the type of IndexType.
 				operator IndexType() const { return m_Index; }
 
 				// Returns whether or not the stored value is valid. TRUE: The stored value is valid.
-				bool IsValid() const { return m_Index != InvalidIndex; }
+				[[nodiscard]] bool IsValid() const { return m_Index != InvalidIndex; }
 
 			private:
 				Index(IndexType index)
 					:m_Index(index) { }
+
+				void Move(Index& other)
+				{
+					m_Index = other.m_Index;
+					other.m_Index = InvalidIndex;
+				}
 
 				Index& operator=(const IndexType& index) { m_Index = index; return *this; };
 
@@ -89,7 +108,7 @@ namespace aZero
 				if (!index.IsValid())
 					return;
 
-				m_FreeIndices.push(index);
+				m_FreeIndices.push(std::move(index));
 				index = InvalidIndex;
 			}
 
@@ -97,10 +116,10 @@ namespace aZero
 			[[nodiscard]] IndexType GetCurrentMax() const { return m_NextFreeIndex; }
 
 			// Returns the number of reusable indices.
-			[[nodiscard]] IndexType GetFreeCount() const { return m_FreeIndices.size(); }
+			[[nodiscard]] std::size_t GetFreeCount() const { return m_FreeIndices.size(); }
 
 		private:
-			std::stack<Index> m_FreeIndices;
+			std::stack<Index, std::vector<Index>> m_FreeIndices;
 			IndexType m_NextFreeIndex;
 		};
 	}

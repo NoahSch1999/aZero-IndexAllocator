@@ -1,3 +1,4 @@
+#include <iostream>
 #include "include/IndexAllocator.hpp"
 
 int main()
@@ -11,6 +12,8 @@ int main()
      // Allocate index (1) to "b"
      auto b = allocator.Allocate();
 
+     // Free "a" (0) and invoke the move-operator which invalidates "b"
+     allocator.Free(a);
      a = std::move(b);
 
      // Free index assigned to "a" (0)
@@ -28,12 +31,8 @@ int main()
      }
      //
 
-     // Double-free index assigned to "a" (0) which results in an early
-return
+     // Double-free index assigned to "a" (0) which results in an early return
      allocator.Free(a);
-
-     // Free index assigned to "b" (1)
-     allocator.Free(b);
 
      // Allocate the previously freed index (0) to "c"
      auto c = allocator.Allocate();
@@ -41,11 +40,9 @@ return
      // Free index assigned to "c" (0)
      allocator.Free(c);
 
-     std::cout << "Current total allocated indices: " <<
-allocator.GetCurrentMax() << "\n";
+     std::cout << "Current total allocated indices: " << allocator.GetCurrentMax() << "\n";
 
-     std::cout << "Current number of indices that have been allocated
-but then recycled: " << allocator.GetFreeCount() << "\n";
+     std::cout << "Current number of indices that have been allocated but then recycled: " << allocator.GetFreeCount() << "\n";
 
      return 0;
 }
